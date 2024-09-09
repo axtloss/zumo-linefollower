@@ -23,9 +23,9 @@ const float Ki = 0.05;
 const float Kd = 9;
 
 int const max_speed_fwd = 400;
-int const min_speed_fwd = 250;
+int const min_speed_fwd = 230;
 int const max_speed_bwd = -400;
-int const min_speed_bwd = -250;
+int const min_speed_bwd = -230;
 int const base_speed = 400;
 
 int rspeed;
@@ -34,6 +34,9 @@ int smoothed_rspeed = 0;
 int smoothed_lspeed = 0;
 
 bool run = true;
+
+int update_rate = 100;
+int curr_rate = 100;
 
 // Glättungsfaktor (zwischen 0 und 1)
 const float smoothing_factor = 0.98;
@@ -67,15 +70,30 @@ void pid_calc() {
     smoothed_rspeed = smoothed_rspeed + smoothing_factor * (rspeed - smoothed_rspeed);
     smoothed_lspeed = smoothed_lspeed + smoothing_factor * (lspeed - smoothed_lspeed);
 
-    display.gotoXY(0,0);
-    display.println(smoothed_rspeed);
-    display.gotoXY(0,1);
-    display.println(smoothed_lspeed);
+    if (smoothed_rspeed > 0 && smoothed_lspeed < 0) {
+      display.gotoXY(3,3);
+      display.print("<-");
+    } else if (smoothed_rspeed < 0 && smoothed_lspeed > 0) {
+      display.gotoXY(3,3);
+      display.print("->");
+    } else {
+      display.gotoXY(3,3);
+      display.print("/\\");
+    }
+ 
+    if (curr_rate == update_rate) {
+      display.gotoXY(0,0);
+      display.println(smoothed_rspeed);
+      display.gotoXY(0,1);
+      display.println(smoothed_lspeed);
+      curr_rate = 0;
+    }
     Serial.print(smoothed_rspeed);
     Serial.print(" | ");
     Serial.print(smoothed_lspeed);
     Serial.print(" | ");
     Serial.print(correction);
+    curr_rate += 1;
 }
 
 void motor_drive() {
