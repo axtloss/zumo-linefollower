@@ -22,8 +22,10 @@ const float Kp = 1;
 const float Ki = 0.05;
 const float Kd = 9;
 
-int const max_speed = 400;
-int const min_speed = -400;
+int const max_speed_fwd = 400;
+int const min_speed_fwd = 250;
+int const max_speed_bwd = -400;
+int const min_speed_bwd = -250;
 int const base_speed = 400;
 
 int rspeed;
@@ -48,13 +50,27 @@ void pid_calc() {
 
     correction = int(Kp * p + Ki * i + Kd * d);
 
-    rspeed = constrain(base_speed + correction, min_speed, max_speed);
-    lspeed = constrain(base_speed - correction, min_speed, max_speed);
+    if (base_speed + correction > 0)
+      rspeed = constrain(base_speed + correction, min_speed_fwd, max_speed_fwd);
+    else if (base_speed + correction < 0)
+      rspeed = constrain(base_speed + correction, min_speed_bwd, max_speed_bwd);
+
+    if (base_speed - correction > 0)
+      lspeed = constrain(base_speed - correction, min_speed_fwd, max_speed_fwd);
+    else if (base_speed - correction < 0)
+      lspeed = constrain(base_speed - correction, min_speed_bwd, max_speed_bwd);
+
+    //rspeed = constrain(base_speed + correction, min_speed, max_speed);
+    //lspeed = constrain(base_speed - correction, min_speed, max_speed);
 
     // Geschwindigkeit glätten
     smoothed_rspeed = smoothed_rspeed + smoothing_factor * (rspeed - smoothed_rspeed);
     smoothed_lspeed = smoothed_lspeed + smoothing_factor * (lspeed - smoothed_lspeed);
 
+    display.gotoXY(0,0);
+    display.println(smoothed_rspeed);
+    display.gotoXY(0,1);
+    display.println(smoothed_lspeed);
     Serial.print(smoothed_rspeed);
     Serial.print(" | ");
     Serial.print(smoothed_lspeed);
@@ -130,8 +146,8 @@ void display_show() {
 void setup() {
     sensors.initFiveSensors();
     Serial.begin(115200);
-    display.init();
-    display.setLayout21x8();
+    display.setLayout11x4();
+    display.clear();
 }
 
 void loop() {
