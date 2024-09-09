@@ -19,11 +19,11 @@ int correction;
 int light = 0;
 const float Kp = 1;
 const float Ki = 0.05;
-const float Kd = 2.5;
+const float Kd = 9;
 
 int const max_speed = 400;
 int const min_speed = -400;
-int const base_speed = 300;
+int const base_speed = 400;
 
 int rspeed;
 int lspeed;
@@ -33,7 +33,7 @@ int smoothed_lspeed = 0;
 bool run = true;
 
 // Glättungsfaktor (zwischen 0 und 1)
-const float smoothing_factor = 0.95;
+const float smoothing_factor = 0.80;
 
 void pid_calc() {
     sensors.read(readings);
