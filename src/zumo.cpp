@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Zumo32U4.h>
@@ -103,13 +104,40 @@ void timer() {
     // Implementiere den Timer
 }
 
+void display_show() {
+    display.clear();
+    display.gotoXY(0, 0);
+    display.print("L:");
+    display.gotoXY(0, 1);
+    display.print("R:");
+
+    int lbar = map(smoothed_lspeed, min_speed, max_speed, 0, 8);
+    int rbar = map(smoothed_rspeed, min_speed, max_speed, 0, 8);
+
+    for (int i = 0; i < lbar; i++) {
+        display.gotoXY(2 + i, 0);
+        display.print((char)63); // Voller Block
+    }
+
+    for (int i = 0; i < rbar; i++) {
+        display.gotoXY(2 + i, 1);
+        display.print((char)63); // Voller Block
+    }
+
+    display.display();
+}
+
 void setup() {
     sensors.initFiveSensors();
     Serial.begin(115200);
+    display.init();
+    display.setLayout21x8();
 }
 
 void loop() {
     pid_calc();
     motor_drive();
     no_line_detect();
+    display_show();
+    delay(300);
 }
