@@ -33,7 +33,7 @@ int smoothed_lspeed = 0;
 bool run = true;
 
 // Glättungsfaktor (zwischen 0 und 1)
-const float smoothing_factor = 0.80;
+const float smoothing_factor = 0.98;
 
 void pid_calc() {
     sensors.read(readings);
