@@ -1,88 +1,84 @@
-#define F_CPU 16000000
-#include <avr/io.h>
-#include <util/delay.h>
+#include <Arduino.h>
 #include <Wire.h>
 #include <Zumo32U4.h>
-#include <stdio.h>
 
-Zumo32U4OLED display;
-Zumo32U4LineSensors lineSensors;
+Zumo32U4LineSensors sensors;
 Zumo32U4Motors motors;
+Zumo32U4OLED display;
 
-#define NUM_SENSORS 5
-uint16_t lineSensorValues[NUM_SENSORS];
+#define NUM 5
+int readings[NUM];
 
-int currentLeftSpeed = 0;
-int currentRightSpeed = 0;
+int error;
+int p;
+int i;
+int d;
+int lp;
+int correction;
 
-void setup()
-{
-  lineSensors.initFiveSensors();
-  display.setLayout21x8();
+const float Kp = 0;
+const float Ki = 0;
+const float Kd = 0;
+
+int const max_speed;
+int const base_speed;
+
+int rspeed;
+int lspeed;
+
+bool run;
+
+void setup(){
+
 }
 
-void
-moveForward ()
-{
-  motors.setSpeeds(0,0);
-  currentLeftSpeed = 200;
-  currentRightSpeed = 200;
-  motors.setSpeeds(currentLeftSpeed, currentRightSpeed);
-}
+void loop(){
 
-void
-moveLeft ()
-{
-  int x = currentRightSpeed;
-  motors.setSpeeds(currentLeftSpeed*-1, ((x)>0?(x):-(x)));
-}
+    pid_calc();
+    motor_drive();
 
-void
-moveRight ()
-{
-  int x = currentLeftSpeed;
-  motors.setSpeeds(((x)>0?(x):-(x)), currentRightSpeed*-1);
-}
-
-void printReadingsToDisplay()
-{
-  display.gotoXY(0, 0);
-  display.print(lineSensorValues[1]);
-  display.print(F("    "));
-  display.print(lineSensorValues[2]);
-  display.print(F("    "));
-  display.print(lineSensorValues[3]);
-  display.print(F("    "));
-
-  display.gotoXY(0,2);
-  if (lineSensorValues[2] >= 440) {
-    display.print("/\\");
-    moveForward();
-  }
-  else if (lineSensorValues[1] >= 440) {
-    display.print("<-");
-    moveLeft();
-  }
-  else if (lineSensorValues[3] >= 440) {
-    display.print("->");
-    moveRight();
-  }
-  else {
-    motors.setSpeeds(0, 0);
-  }
 }
 
 
-void loop()
-{
-  static uint16_t lastSampleTime = 0;
 
-  if ((uint16_t)(millis() - lastSampleTime) >= 100)
-  {
-    lastSampleTime = millis();
+void pid_calc(){
 
-    lineSensors.read(lineSensorValues, QTR_EMITTERS_ON);
+    sensors.read(readings);
 
-    printReadingsToDisplay();
-  }
+    error = readings[1] - readings[3];
+
+    p = error;
+    i += error;
+    d = p - lp;
+    lp = p;
+
+    correction = int(Kp*p + Ki*i + Kd*d);
+
+    rspeed = constrain(base_speed + correction,0,max_speed);
+    lspeed = constrain(base_speed - correction,0,max_speed);
+
+}
+
+void motor_drive(int l,int r){
+    if(run) motors.setSpeeds(l,r);
+}
+
+void fall_detect(){
+
+}
+
+void no_line_detect(){
+
+}
+
+void finish_detect(){
+
+}
+
+void object_detect(){
+    
+}
+
+void timer(){
+
 }
