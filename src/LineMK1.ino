@@ -11,13 +11,13 @@ Zumo32U4Motors motors;
 Zumo32U4LineSensors sensors;
 Zumo32U4IMU imu;
 
-//Anpassbare Parameter:
+//parameter:
 
 const float P_factor = 1;
 const float I_factor = 0.05;
 const float D_factor = 9;
 
-//Maximalgeschwindigkeit (<=400):
+//max speed (<=400):
 
 int const max_speed = 400;
 int const min_speed = -400;
