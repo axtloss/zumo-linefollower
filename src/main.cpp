@@ -55,7 +55,7 @@ int correction;
 int r_speed;  //motorspeed
 int l_speed;
 int smoothed_r_speed = 0;
-int smoothed_lspeed = 0;
+int smoothed_l_speed = 0;
 
 bool run = true; //switch between drive and stop
 
@@ -110,16 +110,16 @@ void display_bar_bkwd(int height, int x, int y) {
 }
 
 void display_direction() {
-  if (smoothed_lspeed < 0 && smoothed_r_speed > 0) {
+  if (smoothed_l_speed < 0 && smoothed_r_speed > 0) {
     display.gotoXY(4, 1);
     display.print("<-");
-  } else if (smoothed_lspeed > 0 && smoothed_r_speed < 0) {
+  } else if (smoothed_l_speed > 0 && smoothed_r_speed < 0) {
     display.gotoXY(4, 1);
     display.print("->");
-  } else if (smoothed_lspeed > 0 && smoothed_r_speed > 0) {
+  } else if (smoothed_l_speed > 0 && smoothed_r_speed > 0) {
     display.gotoXY(4, 1);
     display.print("/\\");
-  } else if (smoothed_lspeed < 0 && smoothed_r_speed < 0) {
+  } else if (smoothed_l_speed < 0 && smoothed_r_speed < 0) {
     display.gotoXY(4, 1);
     display.print("\\/");
   } else {
@@ -129,10 +129,10 @@ void display_direction() {
 }
 
 void display_show() {
-  if (smoothed_lspeed > 0)
-    display_bar_frwd(run ? map(smoothed_lspeed, 0, max_speed, 0, 32) : 0, 0, 1);
+  if (smoothed_l_speed > 0)
+    display_bar_frwd(run ? map(smoothed_l_speed, 0, max_speed, 0, 32) : 0, 0, 1);
   else
-    display_bar_bkwd(run ? map(-smoothed_lspeed, 0, max_speed, 0, 32) : 0, 0, 2);
+    display_bar_bkwd(run ? map(-smoothed_l_speed, 0, max_speed, 0, 32) : 0, 0, 2);
 
   if (smoothed_r_speed > 0)
     display_bar_frwd(run ? map(smoothed_r_speed, 0, max_speed, 0, 32) : 0, 10, 1);
@@ -248,17 +248,17 @@ void pid_calc() {
     smoothed_r_speed = smoothed_r_speed - smoothing_factor * abs(r_speed - smoothed_r_speed);
   }
 
-  if (smoothed_lspeed < l_speed) {
-    smoothed_lspeed = smoothed_lspeed + smoothing_factor * abs(l_speed - smoothed_lspeed);
-  } else if (smoothed_lspeed > l_speed) {
-    smoothed_lspeed = smoothed_lspeed - smoothing_factor * abs(l_speed - smoothed_lspeed);
+  if (smoothed_l_speed < l_speed) {
+    smoothed_l_speed = smoothed_l_speed + smoothing_factor * abs(l_speed - smoothed_l_speed);
+  } else if (smoothed_l_speed > l_speed) {
+    smoothed_l_speed = smoothed_l_speed - smoothing_factor * abs(l_speed - smoothed_l_speed);
   }
 }
 
 void motor_drive() {
 
   if (run)
-    motors.setSpeeds(-smoothed_lspeed, smoothed_r_speed);  // minus, because we use two right motors
+    motors.setSpeeds(-smoothed_l_speed, smoothed_r_speed);  // minus, because we use two right motors
   else
     motors.setSpeeds(0, 0);
 }
