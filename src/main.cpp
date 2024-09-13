@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <Zumo32U4.h>
 #include "font.h"
+#include "splash.h"
 
 Zumo32U4ButtonA buttonA;
 Zumo32U4ButtonB buttonB;
@@ -11,6 +12,8 @@ Zumo32U4OLED display;
 Zumo32U4Motors motors;
 Zumo32U4LineSensors sensors;
 Zumo32U4IMU imu;
+
+const char nokiaTune[] PROGMEM = "T250 V50 O5 >E8 >D8 F#4 G#4 >C#8 B8 D4 E4 B8 A8 C#4 E4 A2. R1 >E8 >D8 F#4 G#4 >C#8 B8 D4 E4 B8 A8 C#4 E4 A2.";
 
 //parameter:
 
@@ -59,6 +62,33 @@ int smoothed_l_speed = 0;
 
 bool run = true; //switch between drive and stop
 
+void displaySplash(uint8_t *graphics, uint8_t offset = 0)
+{
+  memset (graphics, 0, sizeof(zumo32U4Splash));
+  for (uint16_t i = 0; i < sizeof(zumo32U4Splash) - offset*128; i++) {
+    graphics[i] = pgm_read_byte (zumo32U4Splash + (i%128)*8 + i/128 + offset);
+  }
+  display.display();
+}
+
+void showSplash()
+{
+  uint8_t graphics[1024];
+
+  display.setLayout21x8WithGraphics(graphics);
+  displaySplash(graphics, 0);
+
+  display.gotoXY(4,5);
+  display.print("programmed by");
+  display.gotoXY(1,6);
+  display.print("Neo, Lukas, Ali and");
+  display.gotoXY(5,7);
+  display.print("Constantin");
+  buzzer.playFromProgramSpace(nokiaTune);
+  delay(7000);
+  display.setLayout21x8();
+  display.clear();
+}
 
 void loadCustomCharactersFrwd()
 {
@@ -152,6 +182,7 @@ void setup() {
   while (!imu.gyroDataReady()) {
     delay(5);
   }
+  showSplash();
 }
 
 
