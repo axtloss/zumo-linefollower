@@ -3,7 +3,6 @@
 #include <Zumo32U4.h>
 #include "font.h"
 #include "splash.h"
-
 Zumo32U4ButtonA buttonA;
 Zumo32U4ButtonB buttonB;
 Zumo32U4ButtonC buttonC;
@@ -12,6 +11,8 @@ Zumo32U4OLED display;
 Zumo32U4Motors motors;
 Zumo32U4LineSensors sensors;
 Zumo32U4IMU imu;
+
+#include "animation.h"
 
 const char nokiaTune[] PROGMEM = "T250 V50 O5 >E8 >D8 F#4 G#4 >C#8 B8 D4 E4 B8 A8 C#4 E4 A2. R1 >E8 >D8 F#4 G#4 >C#8 B8 D4 E4 B8 A8 C#4 E4 A2.";
 
@@ -322,8 +323,8 @@ void finish() {
   timeFinish = millis();   //end of timing
   lapTime = (timeFinish - timeStart) / 1000.000;
 
-  display.gotoXY(9, 4);
-  display.print(lapTime);
+  animation(lapTime);
+
   delay(10000);
 
   state = RESET;
