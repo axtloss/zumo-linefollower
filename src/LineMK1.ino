@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Zumo32U4.h>
+#include "font.h"
 
 Zumo32U4ButtonA buttonA;
 Zumo32U4ButtonB buttonB;
@@ -11,92 +12,190 @@ Zumo32U4Motors motors;
 Zumo32U4LineSensors sensors;
 Zumo32U4IMU imu;
 
-//Anpassbare Parameter:
+// parameter:
 
 const float P_factor = 1;
 const float I_factor = 0.05;
 const float D_factor = 9;
 
-//Maximalgeschwindigkeit (<=400):
+// max speed (<=400):
 
 int const max_speed = 400;
 int const min_speed = -400;
 int const base_speed = 400;
 
-//smoothing factor (between 0 and 1)
+// smoothing factor (between 0 and 1)
 
-int const smoothing_factor=1;
+int const smoothing_factor = 1;
 
-enum states {
+enum states
+{
   START,
   RUN,
   FINISH,
   RESET
 };
 
-int state = START;  //state that runs
+int state = START; // state that runs
 
-#define NUM 5  //number of line sensors 
-int values[NUM];
+const int sensor_num = 5; // number of line sensors
+unsigned int values[sensor_num];
 
-unsigned long timeStart; //time of start and finish
+unsigned long timeStart; // time of start and finish
 unsigned long timeFinish;
 
-
-int diff1_3;  //calculation of correction
+int diff1_3; // calculation of correction
 int P_Erg;
 int I_Erg;
 int D_Erg;
 int lastP_Erg = 0;
 int correction;
 
-
-int r_speed;  //motorspeed
+int r_speed; // motorspeed
 int l_speed;
 int smoothed_r_speed = 0;
-int smoothed_lspeed = 0;
+int smoothed_l_speed = 0;
 
-bool run = true; //switch between drive and stop 
-
-
+bool run = true; // switch between drive and stop
 
 
-void setup() {
 
-  Wire.begin();     //initialisation of outputs
+void loadCustomCharactersFrwd()
+{
+  static const char levels[] PROGMEM = {
+      0, 0, 0, 0, 0, 0, 0, 63, 63, 63, 63, 63, 63, 63};
+  display.loadCustomCharacter(levels + 0, 0); // 1 bar
+  display.loadCustomCharacter(levels + 1, 1); // 2 bars
+  display.loadCustomCharacter(levels + 2, 2); // 3 bars
+  display.loadCustomCharacter(levels + 3, 3); // 4 bars
+  display.loadCustomCharacter(levels + 4, 4); // 5 bars
+  display.loadCustomCharacter(levels + 5, 5); // 6 bars
+  display.loadCustomCharacter(levels + 6, 6); // 7 bars
+}
+
+void loadCustomCharactersBkwd()
+{
+  static const char levels[] PROGMEM = {
+      63, 63, 63, 63, 63, 63, 63, 0, 0, 0, 0, 0, 0, 0};
+  display.loadCustomCharacter(levels + 0, 6); // 1 bar
+  display.loadCustomCharacter(levels + 1, 5); // 2 bars
+  display.loadCustomCharacter(levels + 2, 4); // 3 bars
+  display.loadCustomCharacter(levels + 3, 3); // 4 bars
+  display.loadCustomCharacter(levels + 4, 2); // 5 bars
+  display.loadCustomCharacter(levels + 5, 1); // 6 bars
+  display.loadCustomCharacter(levels + 6, 0); // 7 bars
+}
+
+void display_bar_frwd(int height, int x, int y)
+{
+  const char barChars[] = {' ', 0, 1, 2, 3, 4, 5, 6, (char)255};
+
+  for (int i = 0; i <= 1; i++)
+  {
+    display.gotoXY(x, y - i);
+    display.print(barChars[constrain(height - 8 * i, 0, 8)]);
+  }
+}
+
+void display_bar_bkwd(int height, int x, int y)
+{
+  const char barChars[] = {' ', 0, 1, 2, 3, 4, 5, 6, (char)255};
+
+  // loadCustomCharactersBkwd();
+  for (int i = 0; i <= 1; i++)
+  {
+    display.gotoXY(x, y + i);
+    display.print(barChars[constrain(height - 8 * i, 0, 8)]);
+  }
+}
+
+inline void display_direction()
+{
+  if (smoothed_l_speed < 0 && smoothed_r_speed > 0)
+  {
+    display.gotoXY(4, 1);
+    display.print("<-");
+  }
+  else if (smoothed_l_speed > 0 && smoothed_r_speed < 0)
+  {
+    display.gotoXY(4, 1);
+    display.print("->");
+  }
+  else if (smoothed_l_speed > 0 && smoothed_r_speed > 0)
+  {
+    display.gotoXY(4, 1);
+    display.print("/\\");
+  }
+  else if (smoothed_l_speed < 0 && smoothed_r_speed < 0)
+  {
+    display.gotoXY(4, 1);
+    display.print("\\/");
+  }
+  else
+  {
+    display.gotoXY(4, 1);
+    display.print("  ");
+  }
+}
+
+inline void display_show()
+{
+  /*if (smoothed_l_speed > 0)
+    display_bar_frwd(run ? map(smoothed_l_speed, 0, max_speed, 0, 32) : 0, 0, 1);
+  else
+    display_bar_bkwd(run ? map(-smoothed_l_speed, 0, max_speed, 0, 32) : 0, 0, 2);
+
+  if (smoothed_r_speed > 0)
+    display_bar_frwd(run ? map(smoothed_r_speed, 0, max_speed, 0, 32) : 0, 10, 1);
+  else
+    display_bar_bkwd(run ? map(-smoothed_r_speed, 0, max_speed, 0, 32) : 0, 10, 2);*/
+
+  display_direction();
+}
+
+void setup()
+{
+
+  Wire.begin(); // initialisation of outputs
   sensors.initFiveSensors();
   Serial.begin(115200);
   imu.init();
   imu.enableDefault();
-  while (!imu.gyroDataReady()) {
+  // loadCustomCharactersFrwd();
+  while (!imu.gyroDataReady())
+  {
     delay(5);
   }
+  display.setLayout21x8();
+  display.clear();
+  
 }
 
-
-int sumValues(int values[]) {  //funktion to sum up all values of sensors
+int sumValues(unsigned int values[])
+{ // funktion to sum up all values of sensors
   int sum = 0;
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; i++)
+  {
     sum += values[i];
   }
   return sum;
 }
 
-
-
-void start() {  //state 0 funktion, start prosess
+void start()
+{ // state 0 funktion, start prosess
 
   int i = 0;
 
-  display.setLayout21x8();
-  display.clear();
-
-  while (i < 300) {
+  while (i < 300)
+  {
     imu.readGyro();
-    if (imu.g.x < 700) {
+    if (imu.g.x < 700)
+    {
       i++;
-    } else {
+    }
+    else
+    {
       i = 0;
     }
     delay(10);
@@ -107,8 +206,9 @@ void start() {  //state 0 funktion, start prosess
   display.clear();
 
   sensors.read(values);
-  imu.readGyro();  //read value of gyrosensor
-  while (sumValues(values) < 5000) {
+  imu.readGyro(); // read value of gyrosensor
+  while (sumValues(values) < 5000)
+  {
     display.gotoXY(1, 1);
     display.print("Place at Start!");
     sensors.read(values);
@@ -123,9 +223,11 @@ void start() {  //state 0 funktion, start prosess
   display.gotoXY(1, 3);
   display.println("to start.");
 
-  while (buttonA.getSingleDebouncedPress() == 0) {  //wait for button press
+  while (buttonA.getSingleDebouncedPress() == 0)
+  { // wait for button press
   }
-  for (int i = 3; i > 0; i--) {  //countdown
+  for (int i = 3; i > 0; i--)
+  { // countdown
     display.clear();
     display.gotoXY(2, 3);
     display.println("Race starts in: ");
@@ -136,13 +238,14 @@ void start() {  //state 0 funktion, start prosess
   }
   buzzer.playNote(NOTE_G(5), 600, 11);
 
-
   display.clear();
-  timeStart = millis();  //start of timing
+  timeStart = millis(); // start of timing
   state = RUN;
+  display.setLayout11x4();
 }
 
-void pid_calc() {
+void pid_calc()
+{
 
   sensors.read(values);
 
@@ -160,93 +263,176 @@ void pid_calc() {
 
   // smooth motorspeed
 
-  if (smoothed_r_speed < r_speed) {
+  if (smoothed_r_speed < r_speed)
+  {
     smoothed_r_speed = smoothed_r_speed + smoothing_factor * abs(r_speed - smoothed_r_speed);
-  } else if (smoothed_r_speed > r_speed) {
+  }
+  else if (smoothed_r_speed > r_speed)
+  {
     smoothed_r_speed = smoothed_r_speed - smoothing_factor * abs(r_speed - smoothed_r_speed);
   }
 
-  if (smoothed_lspeed < l_speed) {
-    smoothed_lspeed = smoothed_lspeed + smoothing_factor * abs(l_speed - smoothed_lspeed);
-  } else if (smoothed_lspeed > l_speed) {
-    smoothed_lspeed = smoothed_lspeed - smoothing_factor * abs(l_speed - smoothed_lspeed);
+  if (smoothed_l_speed < l_speed)
+  {
+    smoothed_l_speed = smoothed_l_speed + smoothing_factor * abs(l_speed - smoothed_l_speed);
+  }
+  else if (smoothed_l_speed > l_speed)
+  {
+    smoothed_l_speed = smoothed_l_speed - smoothing_factor * abs(l_speed - smoothed_l_speed);
   }
 }
 
-void motor_drive() {
+void motor_drive()
+{
 
   if (run)
-    motors.setSpeeds(-smoothed_lspeed, smoothed_r_speed);  // minus, because we use two right motors
+    motors.setSpeeds(-smoothed_l_speed, smoothed_r_speed); // minus, because we use two right motors
   else
     motors.setSpeeds(0, 0);
 }
 
-
-void no_line_detect() {
+void no_line_detect()
+{
 
   int light = 0;
-  for (int n = 0; n < 5; n++) {
+  for (int n = 0; n < 5; n++)
+  {
     light += values[n];
   }
 
-  if (light < 1100) {
+  if (light < 1100)
+  {
     run = false;
     light = 0;
-  } else {
+  }
+  else
+  {
     run = true;
   }
 }
 
+void animation(double lapTime){
 
-
-void finish() {
-
-  double lapTime;
-
-  motors.setSpeeds(0, 0);
-
-  display.clear();
-  timeFinish = millis();   //end of timing
-  lapTime = (timeFinish - timeStart) / 1000.000;
+  display.gotoXY(10, 4);
+  display.print((char)255);
+  delay(200);
 
   display.gotoXY(9, 4);
-  display.print(lapTime);
-  delay(10000);
+  display.print((char)255);
 
-  state = RESET;
-}
+  display.gotoXY(11, 4);
+  display.print((char)255);
+  delay(200);
 
+  display.gotoXY(12, 4);
+  display.print((char)255);
 
+  display.gotoXY(8, 4);
+  display.print((char)255);
+  delay(200);
 
+  for (int l = 0; l < 2; l++)
+  {
+  display.clear();
+    display.gotoXY(7, 4);
+    display.print((char)255);
+    display.gotoXY(13, 4);
+    display.print((char)255);
+    display.gotoXY(13, 3);
+    display.print((char)255);
+    display.gotoXY(13, 5);
+    display.print((char)255);
+    display.gotoXY(7, 3);
+    display.print((char)255);
+    display.gotoXY(7, 5);
+    display.print((char)255);
+    display.gotoXY(12, 3);
+    display.print((char)255);
+    display.gotoXY(12, 5);
+    display.print((char)255);
+    display.gotoXY(8, 3);
+    display.print((char)255);
+    display.gotoXY(8, 5);
+    display.print((char)255);
+    display.gotoXY(11, 3);
+    display.print((char)255);
+    display.gotoXY(11, 5);
+    display.print((char)255);
+    display.gotoXY(9, 3);
+    display.print((char)255);
+    display.gotoXY(9, 5);
+    display.print((char)255);
+    display.gotoXY(10, 3);
+    display.print((char)255);
+    display.gotoXY(10, 5);
+    display.print((char)255);
 
+    display.gotoXY(8, 4);
+    display.print(lapTime);
 
-
-void loop() {
-
-  if (state == START) {
-    start();
-  } else if (state == RUN) {
-
-    sensors.read(values);
-    if (sumValues(values) > 5000 && (millis() - timeStart) > 1000) {  //check if finish is reached
-      state = FINISH;
-    } else {
-
-      pid_calc();
-      motor_drive();
-      no_line_detect();
-    }
-
-
-  } else if (state == FINISH) {
-
-    finish();
-
-  } else if (state == RESET) {
+    delay(500);
 
     display.clear();
-    display.gotoXY(3, 0);
-    display.print("Press reset to restart");
-    state = 4;
+    display.gotoXY(8, 4);
+    display.print(lapTime);
+
+    delay(500);
   }
 }
+
+  void finish()
+  {
+
+    double lapTime;
+
+    motors.setSpeeds(0, 0);
+
+    display.clear();
+    timeFinish = millis(); // end of timing
+    lapTime = (timeFinish - timeStart) / 1000.000;
+
+    animation(lapTime);
+    
+    delay(10000);
+
+    state = RESET;
+  }
+
+void loop(){
+
+    if (state == START)
+    {
+
+      start();
+    }
+    else if (state == RUN)
+    {
+
+      sensors.read(values);
+      if (sumValues(values) > 5000 && (millis() - timeStart) > 1000)
+      { // check if finish is reached
+        state = FINISH;
+        display.setLayout21x8();
+      }
+      else
+      {
+        pid_calc();
+        motor_drive();
+        no_line_detect();
+        display_show();
+      }
+    }
+    else if (state == FINISH)
+    {
+
+      finish();
+    }
+    else if (state == RESET)
+    {
+
+      display.clear();
+      display.gotoXY(3, 0);
+      display.print("Press reset to restart");
+      state = 4;
+    }
+  }
